@@ -19,6 +19,14 @@ cd compress
 bash train.sh
 ```
 
+## 评估
+```
+cd compress
+python ./evaluator.py --work_dir CompressLLM --batch_size 1
+```
+
+会输出验证集三个loss和AE的BLEU-4。
+
 ## 超参数更改
 修改 ./compress/CompressLLM/config.json
 ![config](./config.png "config")
