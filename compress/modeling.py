@@ -60,12 +60,12 @@ class CompressLLM(torch.nn.Module):
         self.mem_tokens = nn.Parameter(self.model.model.embed_tokens.weight.new_zeros((mem_size, config.hidden_size)), requires_grad=True)
         self.special_tokens = nn.Parameter(self.model.model.embed_tokens.weight.new_zeros((2, config.hidden_size)), requires_grad=True)
         self.head_num = head_num
-        # self.compress_head = nn.Linear(config.hidden_size, head_num*config.vocab_size, bias=False, device=f"cuda:{device_rank}",
-        #                                 dtype=self.model.model.embed_tokens.weight.dtype)
-        self.compress_head = nn.Sequential(
-            nn.Linear(config.hidden_size, head_num*128, bias=False, device=f"cuda:{device_rank}", dtype=self.model.model.embed_tokens.weight.dtype),
-            nn.Linear(head_num*128, head_num*config.vocab_size, bias=False, device=f"cuda:{device_rank}", dtype=self.model.model.embed_tokens.weight.dtype)
-            )
+        self.compress_head = nn.Linear(config.hidden_size, head_num*config.vocab_size, bias=False, device=f"cuda:{device_rank}",
+                                        dtype=self.model.model.embed_tokens.weight.dtype)
+        # self.compress_head = nn.Sequential(
+        #     nn.Linear(config.hidden_size, head_num*128, bias=False, device=f"cuda:{device_rank}", dtype=self.model.model.embed_tokens.weight.dtype),
+        #     nn.Linear(head_num*128, head_num*config.vocab_size, bias=False, device=f"cuda:{device_rank}", dtype=self.model.model.embed_tokens.weight.dtype)
+        #     )
         mean = torch.mean(self.model.model.embed_tokens.weight).item()
         std = torch.std(self.model.model.embed_tokens.weight).item()
         nn.init.normal_(self.mem_tokens, mean=mean, std=std)
@@ -170,9 +170,8 @@ class CompressLLM(torch.nn.Module):
 
             # [B,mem_size+S,V] -> [B,S,V]
             logits = outputs.logits[:,mem_size:]
-            logits = logits.contiguous().view(-1, self.vocab_size)
             inputs['ae_targets'] = inputs['ae_targets'].contiguous().view(-1).to(logits.device)
-            ae_loss = self.loss_fct(logits, inputs['ae_targets'])
+            ae_loss = self.loss_fct(logits.contiguous().view(-1, self.vocab_size), inputs['ae_targets'])
             loss_info["ae_loss"] = ae_loss.item()
             tot_loss += ae_loss
             tot_task += 1       
@@ -181,6 +180,61 @@ class CompressLLM(torch.nn.Module):
         # return AE_logtis for validation.
         return {"loss":loss, "loss_info":loss_info, "logits":logits}
 
+    def ae_inference(self,inputs,generate_num):
+        # ->LlamaForCausalLM->LlamaModel->embed_tokens
+        inputs_embeds = self.model.model.embed_tokens(inputs["input_ids"])
+        bsz, seq_len, emb_size = inputs_embeds.size()
+        mem_size = self.mem_tokens.size(0)
+        expand_mem = self.mem_tokens.unsqueeze(0).expand(bsz, mem_size, emb_size)
+        encode_inputs_embeds = torch.cat([inputs_embeds,expand_mem],dim=1)
+
+        # [1,seq_len]
+        position_ids = torch.arange(1,seq_len+1,device=inputs_embeds.device).unsqueeze(0)
+        # [1,mem_size]
+        mem_position_ids = torch.arange((self.head_num+1)//2, seq_len+1, step=self.head_num, device=inputs_embeds.device).unsqueeze(0)
+        # [1,seq_len+mem_size]
+        encode_position_ids = torch.cat([position_ids,mem_position_ids],dim=1)
+
+        # decoder outputs consists of (dec_features, layer_state, dec_hidden, dec_attn)
+        outputs = self.model(
+            position_ids=encode_position_ids,
+            inputs_embeds=encode_inputs_embeds,
+            output_hidden_states=True,
+        )
+
+        hidden_states = outputs.hidden_states[-1]
+        
+        # [B,mem_size,emb_size]
+        mem_hidden = hidden_states[:,-mem_size:]
+
+        # [1,E] -> [1,1,E] -> [B,1,E]
+        expand_ae_token = self.special_tokens[0:1].unsqueeze(0).expand(bsz, 1, emb_size)
+            
+        #                  [B,mem_size,E];   [B,1,E]
+        ae_emb = torch.cat([mem_hidden, expand_ae_token],dim=1)
+        ae_position_ids = torch.cat([mem_position_ids, position_ids[:,:1]-1],dim=1)
+        
+
+        generate_text = []
+        past_key_values = None
+        next_inputs_embeds = ae_emb.clone()
+        next_position_ids = ae_position_ids.clone()
+        
+        for i in range(generate_num):
+            
+            out = self.model(position_ids=next_position_ids, inputs_embeds=next_inputs_embeds, past_key_values=past_key_values, use_cache=True)
+            # [B,S,V] -> [B,V]
+            logit = out.logits[:, -1]
+            past_key_values = out.past_key_values
+            # [B,V]->[B]
+            next_token_id = torch.argmax(logit, dim=-1)
+
+            # [B]->[B,E]->[B,1,E]
+            next_inputs_embeds = self.model.model.embed_tokens(next_token_id).unsqueeze(1).to(inputs_embeds.device)
+            next_position_ids = position_ids[:,i:i+1]
+            generate_text.append(next_token_id.item())
+
+        return generate_text
 
 
 def save_adapter(model,save_path_and_name='adapter.pt', log=False):
@@ -234,7 +288,6 @@ def get_model_for_compress(model_id, task_config, rank):
         mem_size=task_config["mem_size"],
         head_num=task_config["head_num"],
         device_rank=rank
- 
     )
     # model = prepare_model_for_kbit_training(model)
     add_compress_lora(model, task_config)
