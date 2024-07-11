@@ -31,6 +31,9 @@ python ./evaluator.py --work_dir CompressLLM --batch_size 1
 修改 ./compress/CompressLLM/config.json
 ![config](./config.png "config")
 
+注意修改自己的hugging face的token访问令牌
+segment_len和segment_size和min_len要保持一致
+
 ## Tips
 处理数据的过程会比较慢，可以一边训练一边处理下一次训练用到的数据：
 ```
