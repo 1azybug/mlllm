@@ -8,7 +8,7 @@ import torch.nn.functional as F
 import math
 import transformers
 
-from peft import prepare_model_for_kbit_training
+# from peft import prepare_model_for_kbit_training
 
 class LinearLoraLayer(nn.Module):
     # No bias in LLama3 LinearLayer
@@ -55,6 +55,7 @@ class CompressLLM(torch.nn.Module):
             torch_dtype=torch.bfloat16,
             device_map=f"cuda:{device_rank}",
         )
+        self.device = f"cuda:{device_rank}"
         config = self.model.config
         self.vocab_size = config.vocab_size
         self.mem_tokens = nn.Parameter(self.model.model.embed_tokens.weight.new_zeros((mem_size, config.hidden_size)), requires_grad=True)
@@ -250,11 +251,15 @@ def save_adapter(model,save_path_and_name='adapter.pt', log=False):
     torch.save(adapter_state_dict, save_path_and_name)
 
 def load_adapter(model, save_path_and_name='adapter.pt', log=False):
-    adapter_state_dict = torch.load(save_path_and_name)
+    adapter_state_dict = torch.load(save_path_and_name, map_location='cpu')  # 先加载到CPU
     if log:
         print("Loading adapter parameters:")
         for name, _ in adapter_state_dict.items():
             print(f"[Load Adapter] {name}")
+    
+    # 将adapter的权重转移到模型的设备上
+    adapter_state_dict = {k: v.to(model.device) for k, v in adapter_state_dict.items()}
+    
     model.load_state_dict(adapter_state_dict, strict=False)
     return model
 

@@ -14,12 +14,14 @@ def parse_args():
     return parser.parse_args()
 
 
-def get_long_text_list(dataset):
+def get_long_text_list(dataset_repo):
     # cache long text for preventing full dataset traversal on each preparation. 
     if os.path.exists('long_text.json'):
         with open('long_text.json', 'r', encoding='utf-8') as f:
             long_text_list =  json.load(f)
         return long_text_list
+
+    dataset = load_dataset(dataset_repo, split="train", streaming=True)
 
     long_text_list = []
     for example in tqdm(dataset, desc="Processing examples"):
@@ -45,20 +47,17 @@ def get_examples(model_id, dataset_repo="DKYoon/SlimPajama-6B",hf_token=None, to
         return torch.load(train_data_name), torch.load(eval_data_name)
     print(f"preparing data :train_data_name:{train_data_name}")
 
-#     model = AutoModelForCausalLM.from_pretrained(
-#     model_id,
-#     torch_dtype=torch.bfloat16,
-#     device_map="cpu",
-#     token=hf_token
-# )
+    model = AutoModelForCausalLM.from_pretrained(
+    model_id,
+    torch_dtype=torch.bfloat16,
+    device_map="cpu",
+    token=hf_token
+)
     tokenizer = AutoTokenizer.from_pretrained(model_id, token=hf_token)
-    dataset = load_dataset(dataset_repo, split="train", streaming=True)
     
-    
+    long_text_list = get_long_text_list(dataset_repo)
+
     examples = []
-
-    long_text_list = get_long_text_list(dataset)
-
     for text in tqdm(long_text_list, desc="Processing examples"):
         
         ids = tokenizer(text)["input_ids"]
