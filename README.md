@@ -45,3 +45,54 @@ python prepare_data.py --work_dir compressLLM_len-500_ratio_5
 ```
 CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python ./trainer.py --work_dir compressLLM_len-500_ratio_5 --port 12314
 ```
+
+
+
+## 消融实验
+```
+在config文件的"task_config"中加入键值"addition": "without_compress_loss"
+CUDA_VISIBLE_DEVICES=0,1 python ./trainer.py --work_dir debug_CompressLLM_wo-cmp --port 12314
+CUDA_VISIBLE_DEVICES=0,1 python ./evaluator.py --work_dir debug_CompressLLM_wo-cmp --batch_size 1
+```
+
+## 指令微调
+将config.josn的data_config中加入"instruction_dataset_repo": "sggetao/PwC"
+
+```
+# 数据预处理
+python instruction_prepare_data.py --work_dir debug_CompressLLM_wo-cmp
+# 训练(确保已经经过AE和LM训练)
+CUDA_VISIBLE_DEVICES=0,1 python ./instruction_trainer.py --work_dir debug_CompressLLM_wo-cmp --port 12314
+# 评估
+CUDA_VISIBLE_DEVICES=0,1 python ./instruction_evaluator.py --work_dir debug_CompressLLM_wo-cmp --batch_size 1
+```
+
+
+## 消融实验+指令微调实验
+
+压缩率 15x的消融实验(没有compress loss)
+```
+python ./trainer.py --work_dir compressLLM_len-510-ratio-15_wo-cmp --port 29500
+python ./evaluator.py --work_dir compressLLM_len-510-ratio-15_wo-cmp --batch_size 1
+```
+
+压缩率 15x的指令微调实验
+```
+# 数据预处理
+python instruction_prepare_data.py --work_dir compressLLM_len-510_ratio-15
+# 训练(确保已经经过AE和LM训练)
+python ./instruction_trainer.py --work_dir compressLLM_len-510_ratio-15 --port 29500
+# 评估
+python ./instruction_evaluator.py --work_dir compressLLM_len-510_ratio-15 --batch_size 1
+```
+
+
+压缩率 15x的指令微调消融实验(没有compress loss)
+```
+# 数据预处理
+python instruction_prepare_data.py --work_dir compressLLM_len-510-ratio-15_wo-cmp
+# 训练(确保已经经过AE和LM训练)
+python ./instruction_trainer.py --work_dir compressLLM_len-510-ratio-15_wo-cmp --port 29500
+# 评估
+python ./instruction_evaluator.py --work_dir compressLLM_len-510-ratio-15_wo-cmp --batch_size 1
+```

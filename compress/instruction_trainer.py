@@ -13,9 +13,9 @@ from transformers.models.llama.modeling_llama import LlamaForCausalLM
 import argparse
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
-from prepare_data import get_examples
-from modeling import get_model, save_adapter
-from dataloader import get_dataset
+from instruction_prepare_data import get_examples
+from instruction_modeling import get_model, save_adapter, load_adapter
+from instruction_dataloader import get_dataset
 
 import logging
 import wandb
@@ -88,10 +88,10 @@ def count_parameters(model, config):
     trainable_percentage = (trainable_params / total_params) * 100
     logging.info(f"Trainable parameters percentage: {trainable_percentage:.2f}%")
 
-    # logging.info(f"below parameters will be trained")
-    # for name, p in model.named_parameters():
-    #     if p.requires_grad:
-    #         logging.info(f"{name}")
+    logging.info(f"below parameters will be trained")
+    for name, p in model.named_parameters():
+        if p.requires_grad:
+            logging.info(f"{name}")
 
 
 # Training process
@@ -140,6 +140,7 @@ def train(rank, args, world_size):
     
     # Instantiate the model and move it to the corresponding GPU
     model = get_model(training_config["model_id"], task_config, rank)
+    model = load_adapter(model, save_path_and_name=args.work_dir+'/adapter.pt', log=False)
 
     if rank == 0:
         count_parameters(model, config)
@@ -177,13 +178,13 @@ def train(rank, args, world_size):
         def save():
             if rank!=0:
                 return
-            with open(os.path.join(args.work_dir,"info.json"),'w') as f:
+            with open(os.path.join(args.work_dir,"instruction_info.json"),'w') as f:
                 json.dump(info_list,f,indent=4)
 
             with open(os.path.join(args.work_dir,"config.json"),'w') as f:
                 json.dump(config,f,indent=4)
                 
-            save_adapter(ddp_model.module,save_path_and_name=os.path.join(args.work_dir,"adapter.pt"))
+            save_adapter(ddp_model.module,save_path_and_name=os.path.join(args.work_dir,"instruction_adapter.pt"))
             # torch.save(optimizer.state_dict(),os.path.join(training_config["save_dir"],"optimizer.pt"))
 
 
@@ -193,8 +194,9 @@ def train(rank, args, world_size):
             # print(f"\n{'-'*80}\nstep{step_num}\ndevice:[{rank}]\ninputs:{inputs}\n{'-'*80}")  # for check
             # logging.info(f"\n{'-'*80}\nstep{step_num}\ndevice:[{rank}]\ninputs:{inputs}\n{'-'*80}")
 
-            if task_config["task_type"]=="Compress" and task_config["addition"]=="without_compress_loss":
-                del inputs["compress_targets"]
+            # if task_config["task_type"]=="Compress" and task_config["addition"]=="without_compress_loss":
+            #     if "compress_targets" in inputs:
+            #         del inputs["compress_targets"]
 
             if step_num % accumulation_steps == 0:
                 loss = training_step(ddp_model,inputs,rank,accumulation_steps)
@@ -263,7 +265,7 @@ if __name__ == "__main__":
 
 """
 # 用 > train.log 无法实时查看输出
-CUDA_VISIBLE_DEVICES=4,5,6,7 python ./trainer.py --config_path ./models/Memorization/config.json --port 12353
+CUDA_VISIBLE_DEVICES=0,1 python ./instruction_trainer.py --work_dir debug_CompressLLM_wo-cmp --port 12314
 """
 
 

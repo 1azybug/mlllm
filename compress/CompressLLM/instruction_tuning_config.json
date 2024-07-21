@@ -1,7 +1,7 @@
 {
     "training_config": {
         "model_id": "meta-llama/Llama-2-7b-hf",
-        "segment_len": 510,
+        "segment_len": 100,
         "total_batch_size": 32,
         "batch_size_per_device": 1,
         "device_count": 8,
@@ -13,19 +13,16 @@
         "save_step": 1000000
     },
     "task_config": {
-        "segment_size": 510,
-        "mem_size": 34,
-        "head_num": 15,
+        "segment_size": 100,
+        "mem_size": 20,
+        "head_num": 5,
         "segment_num": 2,
-        "task_type": "Compress"
+        "task_type": "instruction"
     },
     "data_config": {
-        "dataset_repo": "DKYoon/SlimPajama-6B",
+        "dataset_repo": "sggetao/PwC",
         "hf_token": "123",
-        "token_num": 1000000000,
-        "min_len": 510,
-        "model_id": "meta-llama/Llama-2-7b-hf",
-        "instruction_dataset_repo": "sggetao/PwC"
+        "model_id": "meta-llama/Llama-2-7b-hf"
     },
     "Total_parameters": 6888701952,
     "Trainable_parameters": 150552576,

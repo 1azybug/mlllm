@@ -17,7 +17,8 @@
         "mem_size": 34,
         "head_num": 15,
         "segment_num": 2,
-        "task_type": "Compress"
+        "task_type": "Compress",
+        "addition": "without_compress_loss"
     },
     "data_config": {
         "dataset_repo": "DKYoon/SlimPajama-6B",

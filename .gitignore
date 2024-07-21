@@ -2,3 +2,10 @@
 log.txt
 long_text.json
 evaluate_info_rank*.txt
+hotpot*
+deepmind
+narrativeqa*
+*wandb*
+*debug_CompressLLM_wo-cmp
+test_instruction_dataset.json
+train_instruction_dataset.json

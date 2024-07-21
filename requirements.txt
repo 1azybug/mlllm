@@ -4,3 +4,4 @@ sentencepiece
 matplotlib
 scipy
 nltk
+wandb

@@ -36,7 +36,7 @@ def get_long_text_list(dataset_repo):
     
 
 
-def get_examples(model_id, dataset_repo="DKYoon/SlimPajama-6B",hf_token=None, token_num=1_000_000_000,min_len=512):
+def get_examples(model_id, dataset_repo="DKYoon/SlimPajama-6B",hf_token=None, token_num=1_000_000_000,min_len=512, instruction_dataset_repo=None):
     
     model_name = model_id.split('/')[-1]
     train_data_name = "train_"+model_name+"_"+str(token_num)+f"token_len-{min_len}.pt"

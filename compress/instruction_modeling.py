@@ -62,11 +62,8 @@ class CompressLLM(torch.nn.Module):
         self.special_tokens = nn.Parameter(self.model.model.embed_tokens.weight.new_zeros((2, config.hidden_size)), requires_grad=True)
         self.head_num = head_num
 
-        if task_config["addition"] == "without_compress_loss":
-            self.compress_head = None
-        else:
-            self.compress_head = nn.Linear(config.hidden_size, head_num*config.vocab_size, bias=False, device=f"cuda:{device_rank}",
-                                            dtype=self.model.model.embed_tokens.weight.dtype)
+        self.compress_head = None
+
         # self.compress_head = nn.Sequential(
         #     nn.Linear(config.hidden_size, head_num*128, bias=False, device=f"cuda:{device_rank}", dtype=self.model.model.embed_tokens.weight.dtype),
         #     nn.Linear(head_num*128, head_num*config.vocab_size, bias=False, device=f"cuda:{device_rank}", dtype=self.model.model.embed_tokens.weight.dtype)
@@ -77,7 +74,7 @@ class CompressLLM(torch.nn.Module):
         nn.init.normal_(self.special_tokens, mean=mean, std=std)
 
     def forward(self,inputs):
-        
+        # print(inputs)
         # ->LlamaForCausalLM->LlamaModel->embed_tokens
         inputs_embeds = self.model.model.embed_tokens(inputs["input_ids"])
         bsz, seq_len, emb_size = inputs_embeds.size()
@@ -103,16 +100,25 @@ class CompressLLM(torch.nn.Module):
         
         # [B,mem_size,emb_size]
         mem_hidden = hidden_states[:,-mem_size:]
-        
-        
+        # [B,seq_len,vocab_size]
+        original_logits = outputs.logits[:,:seq_len]
+
         tot_loss = 0
         tot_task = 0
         loss_info = {}
 
 
-
         # LM loss
         if 'lm_targets' in inputs:
+
+            if inputs['lm_targets'] is None:
+                logits = original_logits.contiguous().view(-1, self.vocab_size)
+                inputs["instruction_target"] = inputs["instruction_target"].contiguous().view(-1).to(logits.device)
+
+                lm_loss = self.loss_fct(logits, inputs["instruction_target"])
+                loss_info["lm_loss"] = lm_loss.item()
+                return {"loss":lm_loss, "loss_info":loss_info}
+
             # print("lm_targets will be used")
             # [B,seq_len-1] -> [B,seq_len-1,E]
             lm_target_emb = self.model.model.embed_tokens(inputs['lm_targets'][:,:-1])
@@ -122,8 +128,13 @@ class CompressLLM(torch.nn.Module):
             
             #                     [B,mem_size,E];     [B,1,E];      [B,seq_len-1,E]
             lm_emb = torch.cat([mem_hidden, expand_lm_token,lm_target_emb],dim=1)
-            lm_position_ids = torch.cat([mem_position_ids,position_ids+seq_len-1],dim=1)
+
+            latter_position_ids = torch.arange(seq_len,seq_len+1+lm_target_emb.size(1),device=inputs_embeds.device).unsqueeze(0)
+            lm_position_ids = torch.cat([mem_position_ids,latter_position_ids],dim=1)
             
+            # print("[Debug]")
+            # print(lm_emb.shape)
+            # print(lm_position_ids.shape)
             outputs = self.model(
             position_ids=lm_position_ids,
             inputs_embeds=lm_emb
@@ -131,115 +142,148 @@ class CompressLLM(torch.nn.Module):
 
             # [B,mem_size+S,V] -> [B,S,V]
             logits = outputs.logits[:,mem_size:]
-            logits = logits.contiguous().view(-1, self.vocab_size)
-            inputs['lm_targets'] = inputs['lm_targets'].contiguous().view(-1).to(logits.device)
 
-            lm_loss = self.loss_fct(logits, inputs['lm_targets'])
+            # here, we cat the whole seq's logits
+            logits = torch.cat([original_logits, logits[:,1:]], dim=1)
+            logits = logits.contiguous().view(-1, self.vocab_size)
+            inputs["instruction_target"] = inputs["instruction_target"].contiguous().view(-1).to(logits.device)
+
+            lm_loss = self.loss_fct(logits, inputs["instruction_target"])
             loss_info["lm_loss"] = lm_loss.item()
             tot_loss += lm_loss
-            tot_task += 1            
-
-
-
-
-        # compress loss
-        if "compress_targets" in inputs and self.compress_head is not None:
-            # print("compress_targets will be used")
-            # [B,mem_size,emb_size] -> [B,mem_size,head_num*vocab_size,]
-            logits =  self.compress_head(mem_hidden)
-            logits = logits.float()
-            logits = logits.contiguous().view(-1, self.vocab_size)
-            inputs['compress_targets'] = inputs['compress_targets'].contiguous().view(-1).to(logits.device)
-            
-            compress_loss = self.loss_fct(logits, inputs['compress_targets'])
-            loss_info["compress_loss"] = compress_loss.item()
-            tot_loss += compress_loss
-            tot_task += 1 
-
-
-
-        # AE loss
-        if 'ae_targets' in inputs:
-            # print("ae_targets will be used")
-            # [1,E] -> [1,1,E] -> [B,1,E]
-            expand_ae_token = self.special_tokens[0:1].unsqueeze(0).expand(bsz, 1, emb_size)
-            
-            #                     [B,mem_size,E];     [B,1,E];      [B,seq_len-1,E]
-            ae_emb = torch.cat([mem_hidden, expand_ae_token, inputs_embeds[:,:-1,:]],dim=1)
-            ae_position_ids = torch.cat([mem_position_ids,position_ids-1],dim=1)
-            
-            outputs = self.model(
-            position_ids=ae_position_ids,
-            inputs_embeds=ae_emb
-        )
-
-            # [B,mem_size+S,V] -> [B,S,V]
-            logits = outputs.logits[:,mem_size:]
-            inputs['ae_targets'] = inputs['ae_targets'].contiguous().view(-1).to(logits.device)
-            ae_loss = self.loss_fct(logits.contiguous().view(-1, self.vocab_size), inputs['ae_targets'])
-            loss_info["ae_loss"] = ae_loss.item()
-            tot_loss += ae_loss
-            tot_task += 1       
+            tot_task += 1                 
 
         loss = tot_loss/tot_task
         # return AE_logtis for validation.
-        return {"loss":loss, "loss_info":loss_info, "logits":logits}
+        return {"loss":loss, "loss_info":loss_info}
 
-    def ae_inference(self,inputs,generate_num):
+    def lm_inference(self,inputs,segment_size):
         # ->LlamaForCausalLM->LlamaModel->embed_tokens
         inputs_embeds = self.model.model.embed_tokens(inputs["input_ids"])
         bsz, seq_len, emb_size = inputs_embeds.size()
         mem_size = self.mem_tokens.size(0)
-        expand_mem = self.mem_tokens.unsqueeze(0).expand(bsz, mem_size, emb_size)
-        encode_inputs_embeds = torch.cat([inputs_embeds,expand_mem],dim=1)
 
         # [1,seq_len]
         position_ids = torch.arange(1,seq_len+1,device=inputs_embeds.device).unsqueeze(0)
-        # [1,mem_size]
-        mem_position_ids = torch.arange((self.head_num+1)//2, seq_len+1, step=self.head_num, device=inputs_embeds.device).unsqueeze(0)
-        # [1,seq_len+mem_size]
-        encode_position_ids = torch.cat([position_ids,mem_position_ids],dim=1)
 
-        # decoder outputs consists of (dec_features, layer_state, dec_hidden, dec_attn)
-        outputs = self.model(
-            position_ids=encode_position_ids,
-            inputs_embeds=encode_inputs_embeds,
-            output_hidden_states=True,
-        )
 
-        hidden_states = outputs.hidden_states[-1]
-        
-        # [B,mem_size,emb_size]
-        mem_hidden = hidden_states[:,-mem_size:]
-
-        # [1,E] -> [1,1,E] -> [B,1,E]
-        expand_ae_token = self.special_tokens[0:1].unsqueeze(0).expand(bsz, 1, emb_size)
+        if inputs['lm_targets'] is None:
+            generate_text = []
+            past_key_values = None
+            next_inputs_embeds = inputs_embeds.clone()
+            next_position_ids = position_ids.clone()
             
-        #                  [B,mem_size,E];   [B,1,E]
-        ae_emb = torch.cat([mem_hidden, expand_ae_token],dim=1)
-        ae_position_ids = torch.cat([mem_position_ids, position_ids[:,:1]-1],dim=1)
-        
+            for i in range(4096):
+                # print(f"next_position_ids:{next_position_ids}")
+                out = self.model(position_ids=next_position_ids, inputs_embeds=next_inputs_embeds, past_key_values=past_key_values, use_cache=True)
+                # [B,S,V] -> [B,V]
+                logit = out.logits[:, -1]
+                past_key_values = out.past_key_values
+                # [B,V]->[B]
+                next_token_id = torch.argmax(logit, dim=-1)
 
-        generate_text = []
-        past_key_values = None
-        next_inputs_embeds = ae_emb.clone()
-        next_position_ids = ae_position_ids.clone()
-        
-        for i in range(generate_num):
+                # [B]->[B,E]->[B,1,E]
+                next_inputs_embeds = self.model.model.embed_tokens(next_token_id).unsqueeze(1).to(inputs_embeds.device)
+                next_position_ids = next_position_ids[:,-1:]+1 # [1, seq_len]/[1,1] -> [1,1]
+                generate_text.append(next_token_id.item())
+                if next_token_id.item() == 2: # eos
+                    return generate_text
+                if next_position_ids.item()>segment_size:
+                    expand_mem = self.mem_tokens.unsqueeze(0).expand(bsz, mem_size, emb_size)
+                    encode_inputs_embeds = expand_mem
+
+                    # [1,mem_size]
+                    mem_position_ids = torch.arange((self.head_num+1)//2, segment_size+1, step=self.head_num, device=inputs_embeds.device).unsqueeze(0)
+                    # [1,seq_len+mem_size]
+                    encode_position_ids = torch.cat([position_ids,mem_position_ids],dim=1)
+
+                    # decoder outputs consists of (dec_features, layer_state, dec_hidden, dec_attn)
+                    outputs = self.model(
+                        position_ids=mem_position_ids,
+                        inputs_embeds=encode_inputs_embeds,
+                        past_key_values=past_key_values,
+                        use_cache=True
+                    )
+
+                    hidden_states = outputs.hidden_states[-1]
+                    
+                    # [B,mem_size,emb_size]
+                    mem_hidden = hidden_states[:,-mem_size:]
+                    
+                    # [1,E] -> [1,1,E] -> [B,1,E]
+                    expand_lm_token = self.special_tokens[1:2].unsqueeze(0).expand(bsz, 1, emb_size)
+                    
+                    #                  [B,mem_size,E];     [B,1,E]; 
+                    lm_emb = torch.cat([mem_hidden, expand_lm_token],dim=1)
+
+                    #                              [1,mem_size];    [1,1];
+                    lm_position_ids = torch.cat([mem_position_ids,next_position_ids-1],dim=1)
+
+                    past_key_values = None
+                    out = self.model(position_ids=lm_position_ids, inputs_embeds=lm_emb,
+                                     past_key_values=past_key_values, use_cache=True)
+                    past_key_values = out.past_key_values
+
+                    # next_token_id and next_position_ids don't be changed here.
+
+        else:
+            expand_mem = self.mem_tokens.unsqueeze(0).expand(bsz, mem_size, emb_size)
+            encode_inputs_embeds = torch.cat([inputs_embeds,expand_mem],dim=1)
+            after_embeds = self.model.model.embed_tokens(inputs['lm_targets'])
+
+            # [1,mem_size]
+            mem_position_ids = torch.arange((self.head_num+1)//2, segment_size+1, step=self.head_num, device=inputs_embeds.device).unsqueeze(0)
+            # [1,seq_len+mem_size]
+            encode_position_ids = torch.cat([position_ids,mem_position_ids],dim=1)
+
+            # decoder outputs consists of (dec_features, layer_state, dec_hidden, dec_attn)
+            outputs = self.model(
+                position_ids=encode_position_ids,
+                inputs_embeds=encode_inputs_embeds,
+                output_hidden_states=True,
+            )
+
+            hidden_states = outputs.hidden_states[-1]
             
-            out = self.model(position_ids=next_position_ids, inputs_embeds=next_inputs_embeds, past_key_values=past_key_values, use_cache=True)
-            # [B,S,V] -> [B,V]
-            logit = out.logits[:, -1]
-            past_key_values = out.past_key_values
-            # [B,V]->[B]
-            next_token_id = torch.argmax(logit, dim=-1)
+            # [B,mem_size,emb_size]
+            mem_hidden = hidden_states[:,-mem_size:]
+            
+            # [1,E] -> [1,1,E] -> [B,1,E]
+            expand_lm_token = self.special_tokens[1:2].unsqueeze(0).expand(bsz, 1, emb_size)
+            
+            #                     [B,mem_size,E];     [B,1,E];      [B,seq_len-1,E]
+            lm_emb = torch.cat([mem_hidden, expand_lm_token,after_embeds],dim=1)
+            
+            after_len = expand_lm_token.size(1) + after_embeds.size(1)
+            after_position_ids = torch.arange(segment_size, segment_size+after_len, device=inputs_embeds.device).unsqueeze(0)
+            #                              [1,mem_size];    [1,seq_len];
+            lm_position_ids = torch.cat([mem_position_ids,after_position_ids],dim=1)
 
-            # [B]->[B,E]->[B,1,E]
-            next_inputs_embeds = self.model.model.embed_tokens(next_token_id).unsqueeze(1).to(inputs_embeds.device)
-            next_position_ids = position_ids[:,i:i+1]
-            generate_text.append(next_token_id.item())
 
+            generate_text = []
+            past_key_values = None
+            next_inputs_embeds = lm_emb.clone()
+            next_position_ids = lm_position_ids.clone()
+            
+            for i in range(4096):
+                # print(f"next_position_ids:{next_position_ids}")
+                out = self.model(position_ids=next_position_ids, inputs_embeds=next_inputs_embeds, past_key_values=past_key_values, use_cache=True)
+                # [B,S,V] -> [B,V]
+                logit = out.logits[:, -1]
+                past_key_values = out.past_key_values
+                # [B,V]->[B]
+                next_token_id = torch.argmax(logit, dim=-1)
+
+                # [B]->[B,E]->[B,1,E]
+                next_inputs_embeds = self.model.model.embed_tokens(next_token_id).unsqueeze(1).to(inputs_embeds.device)
+                next_position_ids = next_position_ids[:,-1:]+1 # [1, seq_len]/[1,1] -> [1,1]
+                generate_text.append(next_token_id.item())
+                if next_token_id.item() == 2:
+                    return generate_text
+
+            return generate_text
         return generate_text
+
 
 
 def save_adapter(model,save_path_and_name='adapter.pt', log=False):

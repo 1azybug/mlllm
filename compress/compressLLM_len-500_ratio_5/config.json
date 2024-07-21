@@ -24,7 +24,8 @@
         "hf_token": "123",
         "token_num": 1000000000,
         "min_len": 500,
-        "model_id": "meta-llama/Llama-2-7b-hf"
+        "model_id": "meta-llama/Llama-2-7b-hf",
+        "instruction_dataset_repo": "sggetao/PwC"
     },
     "Total_parameters": 6888701952,
     "Trainable_parameters": 150552576,
