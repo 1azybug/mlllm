@@ -93,10 +93,10 @@ if __name__ == "__main__":
     training_config = config["training_config"]
     config["data_config"]["model_id"] = training_config["model_id"]
     
-    print(config["data_config"])
+    # print(config["data_config"])
     train_examples, eval_examples = get_examples(**config["data_config"])
-    print(len(train_examples))
-    print(train_examples[50])
+    # print(len(train_examples))
+    # print(train_examples[50])
 
 """
 python prepare_data.py --work_dir CompressLLM

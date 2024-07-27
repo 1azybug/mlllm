@@ -20,7 +20,10 @@ class CompressDataset(IterableDataset):
 
             # 当计数器达到 batch_size 时 yield 批次
             if count == self.batch_size:
-                yield {key: torch.stack(value) for key, value in batch.items()}
+                # yield {key: torch.stack(value) for key, value in batch.items()}
+                # only for batch_size == 1 
+                assert self.batch_size==1
+                yield {key: torch.stack(value) if value[0] is not None else None for key, value in batch.items()}
                 batch = {key: [] for key in batch}  # 重置批次
                 count = 0  # 重置计数器
                 

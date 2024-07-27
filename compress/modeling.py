@@ -62,7 +62,7 @@ class CompressLLM(torch.nn.Module):
         self.special_tokens = nn.Parameter(self.model.model.embed_tokens.weight.new_zeros((2, config.hidden_size)), requires_grad=True)
         self.head_num = head_num
 
-        if task_config["addition"] == "without_compress_loss":
+        if "addition" in task_config and task_config["addition"] == "without_compress_loss":
             self.compress_head = None
         else:
             self.compress_head = nn.Linear(config.hidden_size, head_num*config.vocab_size, bias=False, device=f"cuda:{device_rank}",

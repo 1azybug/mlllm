@@ -48,7 +48,8 @@ def setup(rank, world_size, port):
     dist.init_process_group("nccl", rank=rank, world_size=world_size)
 
 def training_step(ddp_model, inputs, rank, accumulation_steps):
-    inputs = {key:value.to(rank) for key,value in inputs.items()}
+    # inputs = {key:value.to(rank) for key,value in inputs.items()}
+    inputs = {key:value.to(rank) if value is not None else None for key,value in inputs.items()}
     output = ddp_model(inputs=inputs)
     loss = output["loss"]
     loss /= accumulation_steps
@@ -145,7 +146,7 @@ def train(rank, args, world_size):
     if rank == 0:
         count_parameters(model, config)
     
-    ddp_model = DDP(model, device_ids=[rank])
+    ddp_model = DDP(model, device_ids=[rank] ,find_unused_parameters=True)
 
     # Instantiate the data loader
     dataset = get_dataset(task_config["task_type"], train_examples, training_config['batch_size_per_device'])    
