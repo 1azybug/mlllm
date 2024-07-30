@@ -47,18 +47,18 @@ class Locator:
         with torch.no_grad():
             for i in range(0, len(context_ids), self.segment_len):
     
-                print(f"Page {i}":)
+                print(f"Page {i}:")
                 chunk = context_ids[i:i + segment_len]
                 chunk_2 = context_ids[i:i + segment_len*2]
                 input_ids = context_prefix + chunk_2 + question_prefix + question_ids + answer_prefix
                 # input_lables = [-100 for x in input_ids]
 
                 past_key_values = None
-                    outputs = self.model(
-                    input_ids=torch.LongTensor(input_ids[:-1]),
-                    past_key_values=past_key_values,
-                    use_cache=True
-                )
+                outputs = self.model(
+                input_ids=torch.LongTensor(input_ids[:-1]),
+                past_key_values=past_key_values,
+                use_cache=True
+            )
                 past_key_values = outputs.past_key_values
                 sum_loss = 0.0
                 sum_tokens = 0

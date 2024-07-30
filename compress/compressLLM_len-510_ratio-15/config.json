@@ -10,7 +10,7 @@
         "max_grad_norm": 1.0,
         "log_step": 10,
         "valid_step": 1000,
-        "save_step": 1000000
+        "save_step": 100000
     },
     "task_config": {
         "segment_size": 510,
@@ -21,14 +21,14 @@
     },
     "data_config": {
         "dataset_repo": "DKYoon/SlimPajama-6B",
-        "hf_token": "123",
+        "hf_token": "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",
         "token_num": 1000000000,
         "min_len": 510,
         "model_id": "meta-llama/Llama-2-7b-hf",
         "instruction_dataset_repo": "sggetao/PwC"
     },
-    "Total_parameters": 6888701952,
-    "Trainable_parameters": 150552576,
-    "Embedding_parameters": 5197824,
-    "non-Embedding_parameters": 145354752
+    "Total_parameters": 1117640704,
+    "Trainable_parameters": 17684480,
+    "Embedding_parameters": 4902912,
+    "non-Embedding_parameters": 12781568
 }

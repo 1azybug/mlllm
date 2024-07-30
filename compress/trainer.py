@@ -193,7 +193,7 @@ def train(rank, args, world_size):
             # print(f"\n{'-'*80}\nstep{step_num}\ndevice:[{rank}]\ninputs:{inputs}\n{'-'*80}")  # for check
             # logging.info(f"\n{'-'*80}\nstep{step_num}\ndevice:[{rank}]\ninputs:{inputs}\n{'-'*80}")
 
-            if task_config["task_type"]=="Compress" and task_config["addition"]=="without_compress_loss":
+            if (task_config["task_type"]=="Compress") and ("addition" in task_config) and (task_config["addition"]=="without_compress_loss"):
                 del inputs["compress_targets"]
 
             if step_num % accumulation_steps == 0:

@@ -89,8 +89,8 @@ class CompressLLM(torch.nn.Module):
         # [1,seq_len+mem_size]
         encode_position_ids = torch.cat([position_ids,mem_position_ids],dim=1)
 
-        print(f"encode_inputs_embeds:{encode_inputs_embeds.shape}")
-        print(f"position_ids:{position_ids.shape}, mem_position_ids:{mem_position_ids.shape}")
+        # print(f"encode_inputs_embeds:{encode_inputs_embeds.shape}")
+        # print(f"position_ids:{position_ids.shape}, mem_position_ids:{mem_position_ids.shape}")
         # decoder outputs consists of (dec_features, layer_state, dec_hidden, dec_attn)
         outputs = self.model(
             position_ids=encode_position_ids,
@@ -114,7 +114,9 @@ class CompressLLM(torch.nn.Module):
         if 'lm_targets' in inputs:
 
             if inputs['lm_targets'] is None:
-                original_logits = original_logits[:,:-1]
+                if original_logits.shape[1] != inputs["instruction_target"].shape[1]: # if only <eos> in next segment, they will be equal.
+                    # no token after <eos> 
+                    original_logits = original_logits[:,:-1]
                 logits = original_logits.contiguous().view(-1, self.vocab_size)
                 inputs["instruction_target"] = inputs["instruction_target"].contiguous().view(-1).to(logits.device)
 
