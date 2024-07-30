@@ -9,3 +9,4 @@ narrativeqa*
 *debug_CompressLLM_wo-cmp
 test_instruction_dataset.json
 train_instruction_dataset.json
+config.json

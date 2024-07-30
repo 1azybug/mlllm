@@ -207,7 +207,8 @@ class CompressLLM(torch.nn.Module):
                         position_ids=mem_position_ids,
                         inputs_embeds=encode_inputs_embeds,
                         past_key_values=past_key_values,
-                        use_cache=True
+                        use_cache=True,
+                        output_hidden_states=True
                     )
 
                     hidden_states = outputs.hidden_states[-1]

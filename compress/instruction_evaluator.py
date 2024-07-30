@@ -110,7 +110,8 @@ class Evaluator:
         info_list=[]
         with torch.no_grad():
             for inputs in tqdm(loader,total=len(eval_examples)//self.batch_size):
-                inputs = {key:value.to(rank) for key,value in inputs.items()}
+                # inputs = {key:value.to(rank) for key,value in inputs.items()}
+                inputs = {key:value.to(rank) if value is not None else None for key,value in inputs.items()}
                 # output = model(inputs=inputs)
                 generate_text = model.lm_inference(inputs,segment_size=task_config["segment_size"])
                 # print(inputs['ae_targets'].size())
