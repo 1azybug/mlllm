@@ -10,6 +10,9 @@ conda create -n forget python=3.10 -y
 conda activate forget
 conda install pytorch==2.2.0 pytorch-cuda=12.1 -c pytorch -c nvidia
 pip install -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple
+
+# numpy2似乎影响nltk的import(nltk->scipy->numpy)
+pip install numpy<2
 ```
 
 ## 训练

@@ -1,2 +1,9 @@
-# python prepare_data.py --work_dir CompressLLM
-# CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python ./trainer.py --work_dir CompressLLM --port 12314
+# python prepare_data.py --work_dir 'compressLLM_len-510-ratio-15_wo-cmp&pe'
+# python ./trainer.py --work_dir 'compressLLM_len-510-ratio-15_wo-cmp&pe' --port 14522
+# python ./evaluator.py --work_dir 'compressLLM_len-510-ratio-15_wo-cmp&pe' --batch_size 1
+
+
+# python instruction_prepare_data.py --work_dir 'compressLLM_len-510-ratio-15_wo-cmp&pe'
+# python ./instruction_trainer.py --work_dir 'compressLLM_len-510-ratio-15_wo-cmp&pe' --port 14522
+# python ./instruction_evaluator.py --work_dir 'compressLLM_len-510-ratio-15_wo-cmp&pe' --batch_size 1
+

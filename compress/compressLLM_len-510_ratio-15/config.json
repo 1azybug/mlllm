@@ -10,7 +10,7 @@
         "max_grad_norm": 1.0,
         "log_step": 10,
         "valid_step": 1000,
-        "save_step": 100000
+        "save_step": 10000
     },
     "task_config": {
         "segment_size": 510,
@@ -27,8 +27,8 @@
         "model_id": "meta-llama/Llama-2-7b-hf",
         "instruction_dataset_repo": "sggetao/PwC"
     },
-    "Total_parameters": 1117640704,
-    "Trainable_parameters": 17684480,
+    "Total_parameters": 2100680704,
+    "Trainable_parameters": 1000724480,
     "Embedding_parameters": 4902912,
-    "non-Embedding_parameters": 12781568
+    "non-Embedding_parameters": 995821568
 }

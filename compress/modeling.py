@@ -56,6 +56,7 @@ class CompressLLM(torch.nn.Module):
             device_map=f"cuda:{device_rank}",
         )
         self.device = f"cuda:{device_rank}"
+        self.task_config = task_config
         config = self.model.config
         self.vocab_size = config.vocab_size
         self.mem_tokens = nn.Parameter(self.model.model.embed_tokens.weight.new_zeros((mem_size, config.hidden_size)), requires_grad=True)
@@ -93,11 +94,18 @@ class CompressLLM(torch.nn.Module):
         encode_position_ids = torch.cat([position_ids,mem_position_ids],dim=1)
 
         # decoder outputs consists of (dec_features, layer_state, dec_hidden, dec_attn)
-        outputs = self.model(
-            position_ids=encode_position_ids,
-            inputs_embeds=encode_inputs_embeds,
-            output_hidden_states=True,
-        )
+        if "wo_pe" in self.task_config:
+            # print("no pe in here")
+            outputs = self.model(
+                inputs_embeds=encode_inputs_embeds,
+                output_hidden_states=True,
+            )
+        else:
+            outputs = self.model(
+                position_ids=encode_position_ids,
+                inputs_embeds=encode_inputs_embeds,
+                output_hidden_states=True,
+            )
 
         hidden_states = outputs.hidden_states[-1]
         
@@ -124,10 +132,15 @@ class CompressLLM(torch.nn.Module):
             lm_emb = torch.cat([mem_hidden, expand_lm_token,lm_target_emb],dim=1)
             lm_position_ids = torch.cat([mem_position_ids,position_ids+seq_len-1],dim=1)
             
-            outputs = self.model(
-            position_ids=lm_position_ids,
-            inputs_embeds=lm_emb
-        )
+            if "wo_pe" in self.task_config:
+                outputs = self.model(
+                inputs_embeds=lm_emb
+            )
+            else:
+                outputs = self.model(
+                position_ids=lm_position_ids,
+                inputs_embeds=lm_emb
+            )               
 
             # [B,mem_size+S,V] -> [B,S,V]
             logits = outputs.logits[:,mem_size:]
@@ -168,10 +181,15 @@ class CompressLLM(torch.nn.Module):
             ae_emb = torch.cat([mem_hidden, expand_ae_token, inputs_embeds[:,:-1,:]],dim=1)
             ae_position_ids = torch.cat([mem_position_ids,position_ids-1],dim=1)
             
-            outputs = self.model(
-            position_ids=ae_position_ids,
-            inputs_embeds=ae_emb
-        )
+            if "wo_pe" in self.task_config:
+                outputs = self.model(
+                inputs_embeds=ae_emb
+            )
+            else:
+                outputs = self.model(
+                position_ids=ae_position_ids,
+                inputs_embeds=ae_emb
+            )
 
             # [B,mem_size+S,V] -> [B,S,V]
             logits = outputs.logits[:,mem_size:]
@@ -201,11 +219,17 @@ class CompressLLM(torch.nn.Module):
         encode_position_ids = torch.cat([position_ids,mem_position_ids],dim=1)
 
         # decoder outputs consists of (dec_features, layer_state, dec_hidden, dec_attn)
-        outputs = self.model(
-            position_ids=encode_position_ids,
-            inputs_embeds=encode_inputs_embeds,
-            output_hidden_states=True,
-        )
+        if "wo_pe" in self.task_config:
+            outputs = self.model(
+                inputs_embeds=encode_inputs_embeds,
+                output_hidden_states=True,
+            )
+        else:
+            outputs = self.model(
+                position_ids=encode_position_ids,
+                inputs_embeds=encode_inputs_embeds,
+                output_hidden_states=True,
+            )           
 
         hidden_states = outputs.hidden_states[-1]
         
@@ -227,7 +251,11 @@ class CompressLLM(torch.nn.Module):
         
         for i in range(generate_num):
             
-            out = self.model(position_ids=next_position_ids, inputs_embeds=next_inputs_embeds, past_key_values=past_key_values, use_cache=True)
+            if "wo_pe" in self.task_config:
+                out = self.model(inputs_embeds=next_inputs_embeds, past_key_values=past_key_values, use_cache=True)
+            else:
+                out = self.model(position_ids=next_position_ids, inputs_embeds=next_inputs_embeds, past_key_values=past_key_values, use_cache=True)
+            
             # [B,S,V] -> [B,V]
             logit = out.logits[:, -1]
             past_key_values = out.past_key_values

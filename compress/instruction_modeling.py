@@ -56,6 +56,7 @@ class CompressLLM(torch.nn.Module):
             device_map=f"cuda:{device_rank}",
         )
         self.device = f"cuda:{device_rank}"
+        self.task_config = task_config
         config = self.model.config
         self.vocab_size = config.vocab_size
         self.mem_tokens = nn.Parameter(self.model.model.embed_tokens.weight.new_zeros((mem_size, config.hidden_size)), requires_grad=True)
@@ -92,11 +93,19 @@ class CompressLLM(torch.nn.Module):
         # print(f"encode_inputs_embeds:{encode_inputs_embeds.shape}")
         # print(f"position_ids:{position_ids.shape}, mem_position_ids:{mem_position_ids.shape}")
         # decoder outputs consists of (dec_features, layer_state, dec_hidden, dec_attn)
-        outputs = self.model(
-            position_ids=encode_position_ids,
-            inputs_embeds=encode_inputs_embeds,
-            output_hidden_states=True,
-        )
+
+        if "wo_pe" in self.task_config:
+            # print("here no pe")
+            outputs = self.model(
+                inputs_embeds=encode_inputs_embeds,
+                output_hidden_states=True,
+            )   
+        else:
+            outputs = self.model(
+                position_ids=encode_position_ids,
+                inputs_embeds=encode_inputs_embeds,
+                output_hidden_states=True,
+            )
 
         hidden_states = outputs.hidden_states[-1]
         
@@ -140,10 +149,15 @@ class CompressLLM(torch.nn.Module):
             # print("[Debug]")
             # print(lm_emb.shape)
             # print(lm_position_ids.shape)
-            outputs = self.model(
-            position_ids=lm_position_ids,
-            inputs_embeds=lm_emb
-        )
+            if "wo_pe" in self.task_config:
+                outputs = self.model(
+                inputs_embeds=lm_emb
+            )
+            else:
+                outputs = self.model(
+                position_ids=lm_position_ids,
+                inputs_embeds=lm_emb
+            )                
 
             # [B,mem_size+S,V] -> [B,S,V]
             logits = outputs.logits[:,mem_size:]
@@ -180,7 +194,10 @@ class CompressLLM(torch.nn.Module):
             
             for i in range(4096):
                 # print(f"next_position_ids:{next_position_ids}")
-                out = self.model(position_ids=next_position_ids, inputs_embeds=next_inputs_embeds, past_key_values=past_key_values, use_cache=True)
+                if "wo_pe" in self.task_config:
+                    out = self.model(inputs_embeds=next_inputs_embeds, past_key_values=past_key_values, use_cache=True)
+                else:
+                    out = self.model(position_ids=next_position_ids, inputs_embeds=next_inputs_embeds, past_key_values=past_key_values, use_cache=True)                  
                 # [B,S,V] -> [B,V]
                 logit = out.logits[:, -1]
                 past_key_values = out.past_key_values
@@ -203,13 +220,21 @@ class CompressLLM(torch.nn.Module):
                     encode_position_ids = torch.cat([position_ids,mem_position_ids],dim=1)
 
                     # decoder outputs consists of (dec_features, layer_state, dec_hidden, dec_attn)
-                    outputs = self.model(
-                        position_ids=mem_position_ids,
-                        inputs_embeds=encode_inputs_embeds,
-                        past_key_values=past_key_values,
-                        use_cache=True,
-                        output_hidden_states=True
-                    )
+                    if "wo_pe" in self.task_config:
+                        outputs = self.model(
+                            inputs_embeds=encode_inputs_embeds,
+                            past_key_values=past_key_values,
+                            use_cache=True,
+                            output_hidden_states=True
+                        )
+                    else:
+                        outputs = self.model(
+                            position_ids=mem_position_ids,
+                            inputs_embeds=encode_inputs_embeds,
+                            past_key_values=past_key_values,
+                            use_cache=True,
+                            output_hidden_states=True
+                        )                        
 
                     hidden_states = outputs.hidden_states[-1]
                     
@@ -226,8 +251,13 @@ class CompressLLM(torch.nn.Module):
                     lm_position_ids = torch.cat([mem_position_ids,next_position_ids-1],dim=1)
 
                     past_key_values = None
-                    out = self.model(position_ids=lm_position_ids, inputs_embeds=lm_emb,
-                                     past_key_values=past_key_values, use_cache=True)
+
+                    if "wo_pe" in self.task_config:
+                        out = self.model(inputs_embeds=lm_emb,
+                                        past_key_values=past_key_values, use_cache=True)
+                    else:
+                        out = self.model(position_ids=lm_position_ids, inputs_embeds=lm_emb,
+                                        past_key_values=past_key_values, use_cache=True)                                           
                     past_key_values = out.past_key_values
 
                     # next_token_id and next_position_ids don't be changed here.
@@ -243,11 +273,18 @@ class CompressLLM(torch.nn.Module):
             encode_position_ids = torch.cat([position_ids,mem_position_ids],dim=1)
 
             # decoder outputs consists of (dec_features, layer_state, dec_hidden, dec_attn)
-            outputs = self.model(
-                position_ids=encode_position_ids,
-                inputs_embeds=encode_inputs_embeds,
-                output_hidden_states=True,
-            )
+
+            if "wo_pe" in self.task_config:
+                outputs = self.model(
+                    inputs_embeds=encode_inputs_embeds,
+                    output_hidden_states=True,
+                )
+            else:
+                outputs = self.model(
+                    position_ids=encode_position_ids,
+                    inputs_embeds=encode_inputs_embeds,
+                    output_hidden_states=True,
+                )                
 
             hidden_states = outputs.hidden_states[-1]
             
@@ -273,7 +310,10 @@ class CompressLLM(torch.nn.Module):
             
             for i in range(4096):
                 # print(f"next_position_ids:{next_position_ids}")
-                out = self.model(position_ids=next_position_ids, inputs_embeds=next_inputs_embeds, past_key_values=past_key_values, use_cache=True)
+                if "wo_pe" in self.task_config:
+                    out = self.model(inputs_embeds=next_inputs_embeds, past_key_values=past_key_values, use_cache=True)
+                else:
+                    out = self.model(position_ids=next_position_ids, inputs_embeds=next_inputs_embeds, past_key_values=past_key_values, use_cache=True)                    
                 # [B,S,V] -> [B,V]
                 logit = out.logits[:, -1]
                 past_key_values = out.past_key_values

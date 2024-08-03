@@ -186,8 +186,10 @@ def train(rank, args, world_size):
             save_adapter(ddp_model.module,save_path_and_name=os.path.join(args.work_dir,"adapter.pt"))
             # torch.save(optimizer.state_dict(),os.path.join(training_config["save_dir"],"optimizer.pt"))
 
+        if rank == 0:
+            progress_bar = tqdm(total=training_steps*accumulation_steps)
 
-        for inputs in tqdm(loader,total=training_steps*accumulation_steps):
+        for inputs in loader:
             step_num += 1
 
             # print(f"\n{'-'*80}\nstep{step_num}\ndevice:[{rank}]\ninputs:{inputs}\n{'-'*80}")  # for check
@@ -248,6 +250,10 @@ def train(rank, args, world_size):
             if step_num % (training_config["save_step"]*accumulation_steps) == 0:
                 save()
 
+            if rank == 0:
+                progress_bar.update(1)
+        if rank == 0:
+            progress_bar.close()
         save()
 
 
