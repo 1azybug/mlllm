@@ -10,4 +10,7 @@ narrativeqa*
 test_instruction_dataset.json
 train_instruction_dataset.json
 *info.json
+*results.json
 *.png
+*instruction_eval*.json
+*instruction_eval*.txt
