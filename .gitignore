@@ -14,3 +14,4 @@ train_instruction_dataset.json
 *.png
 *instruction_eval*.json
 *instruction_eval*.txt
+*data.json

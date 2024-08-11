@@ -6,3 +6,4 @@ scipy
 nltk
 wandb
 accelerate
+openai

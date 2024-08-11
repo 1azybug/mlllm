@@ -19,7 +19,7 @@
         "segment_num": 2,
         "task_type": "Compress",
         "addition": "without_compress_loss",
-        "wo_pe":true
+        "wo_pe": true
     },
     "data_config": {
         "dataset_repo": "DKYoon/SlimPajama-6B",
