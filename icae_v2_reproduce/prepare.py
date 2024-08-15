@@ -16,3 +16,8 @@ with open('train_data.json', 'w', encoding='utf-8') as f:
 with open('eval_data.json', 'w', encoding='utf-8') as f:
     json.dump(eval_data, f, ensure_ascii=False,indent=4)
 
+with open('mini_train_data.json', 'w', encoding='utf-8') as f:
+    json.dump(train_data[-256_000:], f, ensure_ascii=False)
+
+with open('tiny_train_data.json', 'w', encoding='utf-8') as f:
+    json.dump(train_data[-25600:], f, ensure_ascii=False)

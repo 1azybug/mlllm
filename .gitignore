@@ -15,3 +15,4 @@ train_instruction_dataset.json
 *instruction_eval*.json
 *instruction_eval*.txt
 *data.json
+*__pycache__*

@@ -78,7 +78,11 @@ class TrainingArguments(transformers.TrainingArguments):
         default=False,
         metadata={"help": "use my position_id instead of default position_id of llama"},
     )
-    
+    lora_target_modules: str = field(
+        default="",
+        metadata={"help": "lora_target_modules of lora config; q_proj, v_proj default in Llama(see: https://github.com/huggingface/peft/blob/670d0fac316d4618bff6f5502793225a10888801/src/peft/utils/constants.py#L96)"},
+    )
+        
 def print_trainable_parameters(model):
     trainable_parameters = 0
     all_param = 0
@@ -138,7 +142,7 @@ class ICAE(torch.nn.Module):
         self.loss_fct = nn.CrossEntropyLoss(ignore_index=-100)
         self.tokenizer = AutoTokenizer.from_pretrained(self.model_name, use_fast=False)
         self.append_sequence = torch.arange(self.vocab_size, self.vocab_size + self.mem_size, dtype=torch.long, device=device).unsqueeze(0)    # mem tokens
-        self.mem_position_ids = torch.arange((self.mean_compression_rate+1)/2, self.mean_compression_rate*self.mem_size+1, step=self.mean_compression_rate, device=device).unsqueeze(0)
+        # self.mem_position_ids = torch.arange((self.mean_compression_rate+1)//2, self.mean_compression_rate*self.mem_size+1, step=self.mean_compression_rate, device=device).unsqueeze(0)
 
         if self.training:
             self.init()
@@ -188,15 +192,19 @@ class ICAE(torch.nn.Module):
         is_ae_task = (self.ae_token_id == prompt_answer_ids[0,self.mem_size].item())
         # print(f'is_ae_task:{is_ae_task}')
 
+        compression_rate = segment_length/self.mem_size
+        # 完全的范围是[0.5, segment_length+0.5), 该数轴的总长为segment_length, 中间是[1,segment_len]
+        mem_position_ids = torch.arange((compression_rate+1)/2, segment_length+0.5, step=compression_rate, device=device).unsqueeze(0)
+        mem_position_ids = torch.round(mem_position_ids)
         input_position_ids = torch.arange(1,segment_length+1,device=prompt_answer_embs.device).unsqueeze(0)
-        encode_position_ids = torch.cat([input_position_ids,self.mem_position_ids],dim=1)
+        encode_position_ids = torch.cat([input_position_ids,mem_position_ids],dim=1)
 
         second_segment_len = prompt_answer_ids.size(1)-self.mem_size 
         latter_position_ids = torch.arange(0,0+second_segment_len,device=prompt_answer_embs.device).unsqueeze(0)
-        ae_decode_position_ids = torch.cat([self.mem_position_ids,latter_position_ids],dim=1)
+        ae_decode_position_ids = torch.cat([mem_position_ids,latter_position_ids],dim=1)
 
         latter_position_ids = torch.arange(segment_length,segment_length+second_segment_len,device=prompt_answer_embs.device).unsqueeze(0)
-        lm_decode_position_ids = torch.cat([self.mem_position_ids,latter_position_ids],dim=1)
+        lm_decode_position_ids = torch.cat([mem_position_ids,latter_position_ids],dim=1)
 
         decode_position_ids = ae_decode_position_ids if is_ae_task else lm_decode_position_ids
         # print(f'lm_decode_position_ids:{lm_decode_position_ids}; ae_decode_position_ids:{ae_decode_position_ids}')

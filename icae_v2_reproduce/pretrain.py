@@ -21,9 +21,10 @@ def main():
         lora_alpha=32,
         lora_dropout=0.05,
         bias="none",
-        task_type="CAUSAL_LM"
+        task_type="CAUSAL_LM",
+        target_modules = training_args.lora_target_modules if training_args.lora_target_modules else None
     )
-    
+    # print(lora_config)
     # check model_args.mem_size and min_tokens_for_lm
     assert (training_args.fixed_mem_size & (training_args.fixed_mem_size - 1)) == 0, "training_args.fixed_mem_size must be a power of 2"    
     assert training_args.leave_tokens_for_lm <= training_args.min_tokens_for_lm, "leave_tokens_for_lm should be fewer than min_tokens_for_lm"
