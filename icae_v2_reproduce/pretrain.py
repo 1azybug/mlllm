@@ -14,7 +14,7 @@ def main():
     print(model_args)
     print(data_args)
     
-    training_args.gradient_checkpointing_kwargs = {"use_reentrant": False}  # manually add this argument in the code
+    # training_args.gradient_checkpointing_kwargs = {"use_reentrant": False}  # manually add this argument in the code
 
     lora_config = LoraConfig(
         r=model_args.lora_r,
@@ -32,7 +32,7 @@ def main():
     
     memory_size = training_args.fixed_mem_size
 
-    train_file = "train_data.json"
+    train_file = "mini_train_data.json"
     eval_file = "eval_data.json"
 
     print("Loading dataset...")

@@ -41,9 +41,4 @@ Your output should be:
 
 Your response should only be in the JSON format above; THERE SHOULD BE NO OTHER CONTENT INCLUDED IN YOUR RESPONSE. Write the "reason" key before writing the "choice" key, so that you think step-by-step before making your decision. KEEP YOUR REASONING BRIEF. Again, don’t favor either A or B if they are both acceptable and correct -- judge a tie instead.
 
-```
-Text:{}
-Prompt:{}
-Assistant A:{}
-Assistant B:{}
-```
+

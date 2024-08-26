@@ -1,0 +1,43 @@
+accelerate launch --multi_gpu --mixed_precision=bf16 --num_processes=8 pretrain.py \
+--output_dir /mnt/zhaorunsong/icae_output \
+--model_name_or_path /mnt/zhaorunsong/models/TinyLlama/TinyLlama_v1.1 \
+--model_max_length 512 \
+--lm_ratio 0.5 \
+--gradient_accumulation_steps 4 \
+--per_device_train_batch_size 1 \
+--num_train_epochs 1 \
+--per_device_eval_batch_size 1 \
+--learning_rate 1e-4 \
+--warmup_steps 300 \
+--max_grad_norm 2.0 \
+--overwrite_output_dir \
+--logging_steps 10 \
+--evaluation_strategy "steps" \
+--eval_steps 100 \
+--add_special_token_for_lm True \
+--use_my_pe True \
+--lora_target_modules 'all-linear' \
+--lr_scheduler_type 'constant' \
+--save_steps 1000000000
+
+accelerate launch --multi_gpu --mixed_precision=bf16 --num_processes=8 pretrain.py \
+--output_dir /mnt/zhaorunsong/icae_output \
+--model_name_or_path /mnt/zhaorunsong/models/TinyLlama/TinyLlama_v1.1 \
+--model_max_length 512 \
+--lm_ratio 0.5 \
+--gradient_accumulation_steps 4 \
+--per_device_train_batch_size 1 \
+--num_train_epochs 1 \
+--per_device_eval_batch_size 1 \
+--learning_rate 1e-4 \
+--warmup_steps 300 \
+--max_grad_norm 2.0 \
+--overwrite_output_dir \
+--logging_steps 10 \
+--evaluation_strategy "steps" \
+--eval_steps 100 \
+--add_special_token_for_lm True \
+--use_my_pe False \
+--lora_target_modules 'all-linear' \
+--lr_scheduler_type 'constant' \
+--save_steps 1000000000

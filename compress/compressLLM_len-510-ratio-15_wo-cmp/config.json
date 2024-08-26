@@ -22,7 +22,7 @@
     },
     "data_config": {
         "dataset_repo": "DKYoon/SlimPajama-6B",
-        "hf_token": "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",
+        "hf_token": "123",
         "token_num": 1000000000,
         "min_len": 510,
         "model_id": "meta-llama/Llama-2-7b-hf",

@@ -356,3 +356,10 @@ modeling_icae_multi_span.py 195行插入
 将segment_length分成self.mem_size份，每份长度为compression_rate
 
 第一份的中点为0.5+compression_rate/2，下一份中点到上一份中点的距离为compression_rate，最后一份的中点必然小于右端点segment_length+0.5，为segment_length+0.5-compression_rate/2。
+
+## 自闭
+我为什么要复现这个,很多实验设置都不一样。有这时间我再检查七八遍我的代码不好吗?
+目前还有一个导致我的position id不佳的原因是decoder没有训练。
+
+## 让decoder参与训练
+具体修改过程不写了，好奇的话直接看commit:fire decoder and disable gradient_checkpointing。

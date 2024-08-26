@@ -50,11 +50,11 @@ def train_model(model, train_dataset, eval_dataset, training_args, data_collator
     print(f"Loaded from the checkpoint: {checkpoint}")
 
     train_result = trainer.train(resume_from_checkpoint=checkpoint)
-    trainer.save_model()
-    trainer.log_metrics("train", train_result.metrics)
-    metrics = trainer.evaluate()
-    trainer.log_metrics("eval", metrics)
-    trainer.save_metrics("eval", metrics)
+    # trainer.save_model()
+    # trainer.log_metrics("train", train_result.metrics)
+    # metrics = trainer.evaluate()
+    # trainer.log_metrics("eval", metrics)
+    # trainer.save_metrics("eval", metrics)
 
 
 def text_extraction(input_ids, length, lm_ratio=0.0):

@@ -112,7 +112,8 @@ class ICAE(torch.nn.Module):
         self.training = self.model_args.train    
         
         if self.training:    # indepedent model for gradient checkpointing
-            self.decoder = AutoModelForCausalLM.from_pretrained(self.model_name, torch_dtype=torch.float16 if training_args.bf16 is False else torch.bfloat16, use_flash_attention_2=True, resume_download=True)
+            # self.decoder = AutoModelForCausalLM.from_pretrained(self.model_name, torch_dtype=torch.float16 if training_args.bf16 is False else torch.bfloat16, use_flash_attention_2=True, resume_download=True)
+            self.decoder=self.icae
 
         self.vocab_size = self.icae.config.vocab_size + 1    # [PAD] token
         self.pad_token_id = self.vocab_size - 1
@@ -149,18 +150,18 @@ class ICAE(torch.nn.Module):
 
 
     def init(self):
-        print("Freezing the decoder...")
-        freeze_model(self.decoder)
-        self.decoder.eval()
+        # print("Freezing the decoder...")
+        # freeze_model(self.decoder)
+        # self.decoder.eval()
         print_trainable_parameters(self)
         if self.training_args.restore_from is not None and self.training_args.restore_from != "":
             print(f"Loading from the pretrained checkpoint: {self.training_args.restore_from}...")
             state_dict = load_file(self.training_args.restore_from)
             self.load_state_dict(state_dict)
             print(f"Finished loading from {self.training_args.restore_from}")
-        print("Enabling gradient checkpointing...")
+        # print("Enabling gradient checkpointing...")
         # self.icae.gradient_checkpointing_enable(gradient_checkpointing_kwargs={"use_reentrant": False})
-        self.decoder.gradient_checkpointing_enable(gradient_checkpointing_kwargs={"use_reentrant": False})
+        # self.decoder.gradient_checkpointing_enable(gradient_checkpointing_kwargs={"use_reentrant": False})
                 
         
     def compute_num_segments(self, total_length):
@@ -245,11 +246,11 @@ class ICAE(torch.nn.Module):
             else:
                 decoder_outputs = self.decoder(inputs_embeds=prompt_answer_embs, output_hidden_states=True)
         else:
-            with self.icae.disable_adapter():   # no independent decoder; use self.icae
-                if self.training_args.use_my_pe: 
-                    decoder_outputs = self.icae(position_ids=decode_position_ids, inputs_embeds=prompt_answer_embs, output_hidden_states=True)             
-                else:
-                    decoder_outputs = self.icae(inputs_embeds=prompt_answer_embs, output_hidden_states=True)
+            # with self.icae.disable_adapter():   # no independent decoder; use self.icae
+            if self.training_args.use_my_pe: 
+                decoder_outputs = self.icae(position_ids=decode_position_ids, inputs_embeds=prompt_answer_embs, output_hidden_states=True)             
+            else:
+                decoder_outputs = self.icae(inputs_embeds=prompt_answer_embs, output_hidden_states=True)
 
 
         logits = decoder_outputs.logits
