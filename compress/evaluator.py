@@ -101,7 +101,7 @@ class Evaluator:
         training_config = self.config["training_config"]
         task_config = self.config["task_config"]
         train_examples, eval_examples = get_examples(**self.config["data_config"])
-        eval_examples = eval_examples[:32]
+        # eval_examples = eval_examples[:32]
         example_num_per_gpu = len(eval_examples)//torch.cuda.device_count()
         assert example_num_per_gpu*torch.cuda.device_count() == len(eval_examples)
         eval_examples = eval_examples[rank*example_num_per_gpu:(rank+1)*example_num_per_gpu]
