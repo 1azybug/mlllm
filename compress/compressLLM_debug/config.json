@@ -17,7 +17,8 @@
         "mem_size": 34,
         "head_num": 15,
         "segment_num": 2,
-        "task_type": "Compress"
+        "task_type": "Compress",
+        "wo_ae": true
     },
     "data_config": {
         "dataset_repo": "DKYoon/SlimPajama-6B",
@@ -26,9 +27,5 @@
         "min_len": 510,
         "model_id": "../../models/TinyLlama/TinyLlama_v1.1",
         "instruction_dataset_repo": "sggetao/PwC"
-    },
-    "Total_parameters": 2100680704,
-    "Trainable_parameters": 1000724480,
-    "Embedding_parameters": 4902912,
-    "non-Embedding_parameters": 995821568
+    }
 }
