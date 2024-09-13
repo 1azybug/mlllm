@@ -62,3 +62,4 @@ Assistant B:{}
 
 # python GPT4o_prepare.py --work_dir1 compressLLM_len-510_ratio-15 --work_dir2 compressLLM_len-510-ratio-15_wo-cmp --output_dir GPT4_eval_result/full_vs_wo-cmp
 # python GPT4o_prepare.py --work_dir1 compressLLM_len-510-ratio-15_wo-cmp --work_dir2 'compressLLM_len-510-ratio-15_wo-cmp&pe'  --output_dir GPT4_eval_result/wo-cmp_vs_wo-cmp-and-pe
+# python GPT4o_prepare.py --work_dir1 compressLLM_len-510-ratio-15_wo-ae --work_dir2 compressLLM_len-510-ratio-15_wo-cmp  --output_dir GPT4_eval_result/wo-ae_vs_wo-cmp

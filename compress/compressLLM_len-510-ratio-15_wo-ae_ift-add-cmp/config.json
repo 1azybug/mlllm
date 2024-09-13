@@ -1,6 +1,6 @@
 {
     "training_config": {
-        "model_id": "../../models/TinyLlama/TinyLlama_v1.1",
+        "model_id": "meta-llama/Llama-2-7b-hf",
         "segment_len": 510,
         "total_batch_size": 32,
         "batch_size_per_device": 1,
@@ -10,7 +10,7 @@
         "max_grad_norm": 1.0,
         "log_step": 10,
         "valid_step": 1000,
-        "save_step": 100
+        "save_step": 1000000
     },
     "task_config": {
         "segment_size": 510,
@@ -26,11 +26,11 @@
         "hf_token": "123",
         "token_num": 1000000000,
         "min_len": 510,
-        "model_id": "../../models/TinyLlama/TinyLlama_v1.1",
+        "model_id": "meta-llama/Llama-2-7b-hf",
         "instruction_dataset_repo": "sggetao/PwC"
     },
-    "Total_parameters": 2100680704,
-    "Trainable_parameters": 1000724480,
-    "Embedding_parameters": 4902912,
-    "non-Embedding_parameters": 995821568
+    "Total_parameters": 6888701952,
+    "Trainable_parameters": 150552576,
+    "Embedding_parameters": 5197824,
+    "non-Embedding_parameters": 145354752
 }

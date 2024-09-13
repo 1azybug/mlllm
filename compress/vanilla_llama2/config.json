@@ -1,6 +1,6 @@
 {
     "training_config": {
-        "model_id": "../../models/TinyLlama/TinyLlama_v1.1",
+        "model_id": "meta-llama/Llama-2-7b-hf",
         "segment_len": 510,
         "total_batch_size": 32,
         "batch_size_per_device": 1,
@@ -10,23 +10,21 @@
         "max_grad_norm": 1.0,
         "log_step": 10,
         "valid_step": 1000,
-        "save_step": 100
+        "save_step": 10000
     },
     "task_config": {
         "segment_size": 510,
         "mem_size": 34,
         "head_num": 15,
         "segment_num": 2,
-        "task_type": "Compress",
-        "wo_ae": true,
-        "instruction_fine-tuning_add_compress_loss": true
+        "task_type": "Compress"
     },
     "data_config": {
         "dataset_repo": "DKYoon/SlimPajama-6B",
         "hf_token": "123",
         "token_num": 1000000000,
         "min_len": 510,
-        "model_id": "../../models/TinyLlama/TinyLlama_v1.1",
+        "model_id": "meta-llama/Llama-2-7b-hf",
         "instruction_dataset_repo": "sggetao/PwC"
     },
     "Total_parameters": 2100680704,

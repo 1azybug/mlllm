@@ -16,3 +16,4 @@ train_instruction_dataset.json
 *instruction_eval*.txt
 *data.json
 *__pycache__*
+*/GPT4_eval_result*

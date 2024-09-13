@@ -1,3 +1,5 @@
+# vanilla_*.py modified from instruction_*.py
+
 import json
 import os
 import matplotlib.pyplot as plt
@@ -17,9 +19,9 @@ from nltk.translate.bleu_score import sentence_bleu
 from torch.nn import DataParallel
 import torch.multiprocessing as mp
 
-from instruction_prepare_data import get_examples
-from instruction_modeling import get_model, save_adapter, load_adapter
-from instruction_dataloader import get_dataset
+from vanilla_prepare_data import get_examples
+from vanilla_modeling import get_model, save_adapter, load_adapter
+from vanilla_dataloader import get_dataset
 
 def parse_args():
     parser = argparse.ArgumentParser()
@@ -89,7 +91,7 @@ class Evaluator:
         training_config = self.config["training_config"]
         task_config = self.config["task_config"]
         train_examples, eval_examples = get_examples(**self.config["data_config"])
-        # eval_examples = eval_examples[:64]
+
         example_num_per_gpu = len(eval_examples)//torch.cuda.device_count()
         # assert example_num_per_gpu*torch.cuda.device_count() == len(eval_examples)
 

@@ -63,7 +63,8 @@ class CompressLLM(torch.nn.Module):
         self.special_tokens = nn.Parameter(self.model.model.embed_tokens.weight.new_zeros((2, config.hidden_size)), requires_grad=True)
         self.head_num = head_num
 
-        self.compress_head = None
+        self.compress_head = nn.Linear(config.hidden_size, head_num*config.vocab_size, bias=False, device=f"cuda:{device_rank}",
+                                            dtype=self.model.model.embed_tokens.weight.dtype)
 
         # self.compress_head = nn.Sequential(
         #     nn.Linear(config.hidden_size, head_num*128, bias=False, device=f"cuda:{device_rank}", dtype=self.model.model.embed_tokens.weight.dtype),
@@ -117,6 +118,33 @@ class CompressLLM(torch.nn.Module):
         tot_loss = 0
         tot_task = 0
         loss_info = {}
+
+
+        use_cmp = False
+        if "instruction_fine-tuning_add_compress_loss" in self.task_config and self.task_config["instruction_fine-tuning_add_compress_loss"]:
+            use_cmp = True
+        # compress loss
+        if use_cmp:
+            # print("compress_targets will be used")
+            # [B,mem_size,emb_size] -> [B,mem_size,head_num*vocab_size]
+            logits =  self.compress_head(mem_hidden)
+
+
+
+            # extract original logits
+            # [B,mem_size,head_num*vocab_size] -> [B,tot_Seg_len,V] -> [B,seq_len,V]
+            logits = logits.reshape(bsz,mem_size*self.head_num,self.vocab_size)
+            logits = logits[:,:seq_len,:]
+
+            logits = logits.float()
+            logits = logits.contiguous().view(-1, self.vocab_size)
+
+            compress_targets = inputs["input_ids"].contiguous().view(-1).to(logits.device)
+            
+            compress_loss = self.loss_fct(logits, compress_targets)
+            loss_info["compress_loss"] = compress_loss.item()
+            tot_loss += compress_loss
+            tot_task += 1 
 
 
         # LM loss
@@ -173,7 +201,7 @@ class CompressLLM(torch.nn.Module):
             tot_task += 1                 
 
         loss = tot_loss/tot_task
-        # return AE_logtis for validation.
+
         return {"loss":loss, "loss_info":loss_info}
 
     def lm_inference(self,inputs,segment_size):
